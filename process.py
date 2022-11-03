@@ -1,6 +1,5 @@
 import os.path
 import fitdecode
-import matplotlib.pyplot as plt
 from scipy import signal
 
 import json
