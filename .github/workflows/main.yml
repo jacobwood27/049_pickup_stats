@@ -1,0 +1,46 @@
+name: Daily Update
+
+on:
+  schedule:
+  - cron: "0 8 * * *"
+  
+  workflow_dispatch:
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout latest
+      uses: actions/checkout@v2
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.10"
+        
+    - name: Install packages
+      run: |
+        pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
+        pip install fitdecode
+        pip install scipy
+        
+    - name: Decrypt credentials
+      env:
+          GPG_KEY: ${{ secrets.GPG_KEY }}
+      run: |
+        gpg --quiet --batch --yes --decrypt --passphrase="$GPG_KEY" --output credentials.json credentials.json.gpg
+        gpg --quiet --batch --yes --decrypt --passphrase="$GPG_KEY" --output token.json token.json.gpg
+      
+    - name: Run Script
+      run: |
+        python process.py
+        
+    - name: Commit and Push
+      run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dat.json
+          git commit --allow-empty -m "Update"
+          git push
