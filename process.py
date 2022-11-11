@@ -2,73 +2,38 @@ import os.path
 import fitdecode
 from scipy import signal
 
+import requests
 import json
 import io
 
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
-from googleapiclient.http import MediaIoBaseDownload
-
-# If modifying these scopes, delete the file token.json.
-SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
-
 
 def get_workouts(dat):
-    """Shows basic usage of the Drive v3 API.
-    Prints the names and ids of the first 10 files the user has access to.
-    """
-    creds = None
-    # The file token.json stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
 
-    try:
-        service = build('drive', 'v3', credentials=creds)
+    with open('api.txt', 'r') as file:
+        api_key = file.read()
 
-        # Call the Drive v3 API
-        results = service.files().list(
-            q="name contains 'Soccer' and '1SQyjNucZPj_T6XCr-XCCdBrqT81NO-Ht' in parents", pageSize=1000, fields="nextPageToken, files(id, name)").execute()
-        items = results.get('files', [])
+    headers = {
+        'Accept': 'application/json',
+    }
 
-        items = [item for item in items if not any(substring in item["name"][0:10] for substring in dat["name"])]
+    params = {
+        'q': 'name contains \'Soccer\' and \'1SQyjNucZPj_T6XCr-XCCdBrqT81NO-Ht\' in parents',
+        'key': api_key,
+    }
 
-        for item in items:
-            request = service.files().get_media(fileId=item["id"])
-            file = io.FileIO(item["name"], 'wb') 
-            downloader = MediaIoBaseDownload(file, request)
-            done = False
-            while done is False:
-                status, done = downloader.next_chunk()
-                print(F'Download {int(status.progress() * 100)}.')
+    response = requests.get('https://www.googleapis.com/drive/v3/files', params=params, headers=headers)
+    items = response.json()["files"]
 
-        return items
+    items = [item for item in items if not any(substring in item["name"][0:10] for substring in dat["name"])]
 
-        # if not items:
-        #     print('No files found.')
-        #     return
-        # print('Files:')
-        # for item in items:
-        #     print(u'{0} ({1})'.format(item['name'], item['id']))
+    for item in items:
+        URL = "https://www.googleapis.com/drive/v3/files/" + item["id"] + "?alt=media&key=" + api_key
+        response = requests.get(URL)
+        open(item["name"], "wb").write(response.content)
 
-    except HttpError as error:
-        # TODO(developer) - Handle errors from drive API.
-        print(f'An error occurred: {error}')
+    return items
+
+
 
 def parse_workout(fname):
 
@@ -156,7 +121,7 @@ def get_stat(dat):
 
     n_cuts = len(cuts)
     L_cut_avg = sum(cutL)/n_cuts
-    maxV = max(cutV)
+    maxV = max([a for a in cutV if a < 22/2.237])
     avgV = sum(cutV)/len(cutV)
 
     ftr  = sum(i > (10.0/2.237) for i in v) / len(v)
