@@ -30,8 +30,7 @@ jobs:
       env:
           GPG_KEY: ${{ secrets.GPG_KEY }}
       run: |
-        gpg --quiet --batch --yes --decrypt --passphrase="$GPG_KEY" --output credentials.json credentials.json.gpg
-        gpg --quiet --batch --yes --decrypt --passphrase="$GPG_KEY" --output token.json token.json.gpg
+        gpg --quiet --batch --yes --decrypt --passphrase="$GPG_KEY" --output api.txt api.txt.gpg
       
     - name: Run Script
       run: |
